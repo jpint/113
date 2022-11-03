@@ -18,6 +18,54 @@
         height: 95%;
     }
 
+    .info {
+    z-index: 1000;
+    position: absolute;
+    right: 40%;
+    top: 5%;
+    padding: 6px 8px;
+    font: 14px Arial, Helvetica, sans-serif;
+    text-align: center;
+    background: white;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+}
+
+.info h1 {
+    font-size: 16px;
+    margin: 0 0 5px;
+    color: #777777;
+}
+
+
+.legend {
+    line-height: 18px;
+    color: #333333;
+    font-family: 'Open Sans', Helvetica, sans-serif;
+    padding: 6px 8px;
+    background: white;
+    background: rgba(255,255,255,0.8);
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    border-radius: 5px;
+}
+
+.legend i {
+    width: 28px;
+    height: 18px;
+    float: left;
+    margin-right: 8px;
+    opacity: 0.7;
+}
+
+
+.legend p {
+    font-size: 12px;
+    line-height: 18px;
+    margin: 0;
+}
+
+
     </style>
 </head>
 <body>
@@ -48,7 +96,6 @@
 
 
 
-
         // add point marker
         var myDataPoint = L.marker([39.981192, -75.155399]).addTo(map);
         myDataPoint.bindPopup("This is Temple University.");
@@ -57,7 +104,6 @@
         var temple = L.marker([39.981192, -75.155399]);
         var drexel = L.marker([39.957352834066796, -75.18939693143933]);
         var penn = L.marker([39.95285548473699, -75.19309508637147]);
-
 
 
 
@@ -86,7 +132,7 @@
                                  [39.873212, -74.988837],
                                  [39.859046, -75.377775]
                                  ],
-                     {color: 'blue', weight: 1}).addTo(map);
+                     {color: '#F1CE7C', weight: 1}).addTo(map);
 
         // Bind popup to area object
         myArea.bindPopup("Philadelphia metro");
@@ -106,38 +152,71 @@
         map.on('click', onMapClick);
 
         // load GeoJSON from an external file
+
+
         var neighborhoodsLayer = null;
         $.getJSON("data/blood_lead.geojson",function(data){
-    neighborhoodsLayer = L.geoJson(data, {
-        style: styleFunc
-        onEachFeature: ratfunc
-    }).addTo(map);
-});
+            neighborhoodsLayer = L.geoJson(data, {
+                style: styleFunc,
+                onEachFeature:leadfunc
+            }).addTo(map);
+
+            var overlayLayer = {
+            "blood_lead_level": neighborhoodsLayer,
+            "Phily University": universities
+             };
+
+            L.control.layers(baseMaps, overlayLayer).addTo(map);
+
+
+
+        });
+
+
+
+
+
+
+
 
 var universities = L.layerGroup([temple, drexel, penn]);
 var universityLayer = {
     "Phily University": universities
 };
 
-var overlayLayer = {
-    "blood_lead_level": neighborhoodsLayer,
-    "Phily University": universities
+
+
+// Set style function that sets fill color property equal to blood lead
+function styleFunc(feature) {
+    return {
+        fillColor: setColorFunc(feature.properties.num_bll_5p),
+        fillOpacity: 0.9,
+        weight: 1,
+        opacity: 1,
+        color: '#ffffff',
+        dashArray: '3'
+    };
+}
+
+// Set function for color ramp, you can use a better palette
+function setColorFunc(density){
+    return density > 15 ? '#a50f15' :
+           density > 10 ? '#de2d26' :
+           density > 5 ? '#fb6a4a' :
+           density > 0 ? '#fcae91' :
+                         '#C5A99D';
 };
 
-L.control.layers(baseMaps, overlayLayer).addTo(map);
-
-
-
-function ratfunc(feature, layer){
+function leadfunc(feature, layer){
     layer.on({
         mouseover: hlightFeature,
         mouseout: rHighlight,
         click: zFeature
     });
-    layer.bindPopup('Blood lead level: '+feature.properties.perc_5plus);
+    layer.bindPopup('Blood Lead Level: '+feature.properties.num_bll_5p);
 }
 
-function hlightFeaturefunc(e){
+function hlightFeature(e){
     var layer = e.target;
 
     layer.setStyle({
@@ -152,15 +231,45 @@ function hlightFeaturefunc(e){
     }
 }
 
-function rHightlight(e) {
+
+// Define what happens on mouseout:
+function rHighlight(e) {
     neighborhoodsLayer.resetStyle(e.target);
-} 
+}  
 
 
 function zFeature(e){
     console.log(e.target.getBounds());
     map.fitBounds(e.target.getBounds().pad(1.5));
 }
+
+// Add Scale Bar to Map
+L.control.scale({position: 'bottomleft'}).addTo(map);
+
+// Create Leaflet Control Object for Legend
+var legend = L.control({position: 'bottomright'});
+
+// Function that runs when legend is added to map
+legend.onAdd = function (map) {
+    // Create Div Element and Populate it with HTML
+    var div = L.DomUtil.create('div', 'legend');            
+    div.innerHTML += '<b>Blood Lead Level</b><br />';
+    div.innerHTML += 'by census tract<br />';
+    div.innerHTML += '<br>';
+    div.innerHTML += '<i style="background: #a50f15"></i><p>15+</p>';
+    div.innerHTML += '<i style="background: #de2d26"></i><p>10-15</p>';
+    div.innerHTML += '<i style="background: #fb6a4a"></i><p>5-10</p>';
+    div.innerHTML += '<i style="background: #fcae91"></i><p>0-5</p>';
+    div.innerHTML += '<hr>';
+    div.innerHTML += '<i style="background: #C5A99D"></i><p>No Data</p>';
+    
+    // Return the Legend div containing the HTML content
+    return div;
+};
+
+// Add Legend to Map
+legend.addTo(map);
+
 
 
 
